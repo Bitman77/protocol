@@ -1,0 +1,153 @@
+import secrets
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives.asymmetric import rsa, padding, utils
+from cryptography.hazmat.primitives import hashes
+
+# Generate a 256-bit key for encrypting and decrypting the cryptocurrency data.
+CRYPT_KEY = secrets.token_bytes(32)
+AESGCM_CIPHER = AESGCM(CRYPT_KEY)
+
+def generate_rsa_keys() -> tuple[rsa.RSAPrivateKey, rsa.RSAPublicKey]:
+    """
+    Generate 4096-bit RSA keys for authentication, key exchange, and digital signatures.
+
+    Returns:
+        A tuple of (private_key, public_key).
+    """
+    private_key = rsa.generate_private_key(
+        public_exponent=65537,
+        key_size=4096
+    )
+    public_key = private_key.public_key()
+    return private_key, public_key
+
+def encrypt_data(public_key: rsa.RSAPublicKey, data: bytes) -> bytes:
+    """
+    Generate OAEP padded RSA encryption using the recipient's public key.
+
+    Args:
+        public_key: A public key object.
+        data: A bytes-like object to be encrypted.
+
+    Returns:
+        The encrypted ciphertext.
+    """
+    ciphertext = public_key.encrypt(
+        data,
+        padding.OAEP(
+            mgf=padding.MGF1(algorithm=hashes.SHA256()),
+            algorithm=hashes.SHA256(),
+            label=None
+        )
+    )
+    return ciphertext
+
+def decrypt_data(private_key: rsa.RSAPrivateKey, ciphertext: bytes) -> bytes:
+    """
+    Generate OAEP padded RSA decryption using the recipient's private key.
+
+    Args:
+        private_key: A private key object.
+        ciphertext: A bytes-like object to be decrypted.
+
+    Returns:
+        The decrypted plaintext.
+    """
+    data = private_key.decrypt(
+        ciphertext,
+        padding.OAEP(
+            mgf=padding.MGF1(algorithm=hashes.SHA256()),
+            algorithm=hashes.SHA256(),
+            label=None
+        )
+    )
+    return data
+
+def sign_data(private_key: rsa.RSAPrivateKey, data: bytes) -> bytes:
+    """
+    Generate PSS padded RSA signature using the private key.
+
+    Args:
+        private_key: A private key object.
+        data: A bytes-like object to be signed.
+
+    Returns:
+        The signature.
+    """
+    signature = private_key.sign(
+        data,
+        padding.PSS(
+            mgf=padding.MGF1(hashes.SHA256()),
+            salt_length=padding.PSS.MAX_LENGTH
+        ),
+        utils.Prehashed(hashes.SHA256())
+    )
+    return signature
+
+def verify_data(public_key: rsa.RSAPublicKey, signature: bytes, data: bytes) -> bool:
+    """
+    Verify PSS padded RSA signature using the public key and original data.
+
+    Args:
+        public_key: A public key object.
+        signature: The signature to be verified.
+        data: The original data.
+
+    Returns:
+        True if the signature is valid, False otherwise.
+    """
+    try:
+        public_key.verify(
+            signature,
+            data,
+            padding.PSS(
+                mgf=padding.MGF1(hashes.SHA256()),
+                salt_length=padding.PSS.MAX_LENGTH
+            ),
+            utils.Prehashed(hashes.SHA256())
+        )
+        return True
+    except ValueError:
+        return False
+
+def encrypt_symmetric(data: bytes, nonce: bytes) -> bytes:
+    """
+    Generate AES-GCM authenticated encryption using the symmetric key and nonce.
+
+    Args:
+        data: A bytes-like object to be encrypted.
+        nonce: A bytes-like object representing a unique value for each encryption.
+
+    Returns:
+        The encrypted ciphertext.
+    """
+    ciphertext = AESGCM_CIPHER.encrypt(nonce, data, None)
+    return ciphertext
+
+def decrypt_symmetric(ciphertext: bytes, nonce: bytes) -> bytes:
+    """
+    Generate AES-GCM authenticated decryption using the symmetric key and nonce.
+
+    Args:
+        ciphertext: A bytes-like object to be decrypted.
+        nonce: A bytes-like object representing a unique value for each encryption.
+
+    Returns:
+        The decrypted plaintext.
+    """
+    data = AESGCM_CIPHER.decrypt(nonce, ciphertext, None)
+    return data
+
+   
+
+ *************************************
+This code defines several functions for encrypting and decrypting data using RSA and AES-GCM algorithms. It generates a 256-bit key for encrypting and decrypting the cryptocurrency data, as well as 4096-bit RSA keys for authentication, key exchange, and digital signatures.
+
+The generate_rsa_keys() function generates a pair of RSA private and public keys, which can be used for encryption and decryption using the RSA algorithm. The encrypt_data() function takes a public key and a data object and returns the encrypted ciphertext using the RSA algorithm with OAEP padding. The decrypt_data() function takes a private key and a ciphertext and returns the decrypted plaintext.
+
+The sign_data() function takes a private key and a data object and returns the signature using the RSA algorithm with PSS padding. The verify_data() function takes a public key, a signature, and a data object and returns True if the signature is valid, False otherwise.
+
+The encrypt_symmetric() function takes a data object and a nonce and returns the encrypted ciphertext using the AES-GCM authenticated encryption algorithm with the 256-bit key. The decrypt_symmetric() function takes a ciphertext and a nonce and returns the decrypted plaintext.
+
+Overall, this code provides a secure way to encrypt and decrypt sensitive data using both RSA and AES-GCM algorithms. The use of padding and prehashed algorithms helps to prevent attacks such as padding oracle attacks and hash collisions. Additionally, the use of symmetric key encryption with a strong 256-bit key provides additional security for the cryptocurrency data.
+
